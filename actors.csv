@@ -1,0 +1,8 @@
+Como importar os dados CSV para as tabelas RAW
+
+Abrimos o terminal da pasta onde temos todos os ficheiros .csv e fazemos:
+
+chmod +x load.sh
+./load.sh
+
+Assim todo o conteúdo de cada ficheiro .csv vai ser transferido para as tabelas RAW

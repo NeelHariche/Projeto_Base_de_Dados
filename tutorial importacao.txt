@@ -1,0 +1,88 @@
+USE Projetoteste2;
+GO;
+-- LIMPEZA TOTAL (Evita erros ao re-executar o script)
+DELETE FROM MovieActors;
+DELETE FROM MovieGenres;
+DELETE FROM MovieDirectors;
+DELETE FROM MoviePlatforms;
+DELETE FROM Movies;
+DELETE FROM Actors;
+DELETE FROM Directors;
+DELETE FROM Genres;
+GO
+
+-- Géneros (Garante ID único)
+INSERT INTO Genres (genreID, genreName)
+SELECT genreID, MAX(genreName)
+FROM RawGenres
+WHERE genreID IS NOT NULL
+GROUP BY genreID;
+GO
+
+-- Atores (Garante ID único e limpa o género)
+INSERT INTO Actors (actorID, actorName, actorGender)
+SELECT actorID, MAX(actorName), 
+       MAX(CASE WHEN actorGender LIKE 'm%' THEN 'M' ELSE 'F' END)
+FROM RawActors
+WHERE actorID IS NOT NULL
+GROUP BY actorID;
+GO
+
+-- Realizadores (Garante ID único)
+INSERT INTO Directors (directorID, directorName)
+SELECT directorID, MAX(directorName)
+FROM RawDirectors
+WHERE directorID IS NOT NULL
+GROUP BY directorID;
+GO
+
+-- Filmes (Versão Resiliente - Não apaga dados)
+-- Filmes (Garante ID único e faz a limpeza crítica da duração)
+-- ********************************************************************************
+-- TRANSPOSIÇÃO SIMPLIFICADA: RawMovies -> Movies
+-- ********************************************************************************
+
+INSERT INTO Movies (
+    movieID, 
+    movieName, 
+    movieDuration, 
+    movieBudget, 
+    movieReleaseDate, 
+    movieRatingCount, 
+    movieRating, 
+    countryID, 
+    ageRatingID
+)
+SELECT 
+    R.movieID,
+    ISNULL(MAX(R.movieName), 'Sem Título'), -- Garante que o nome não é NULL
+    -- Limpa a duração (ex: ' 89.0' -> 89) e se falhar põe 0
+    ISNULL(TRY_CAST(REPLACE(TRIM(MAX(R.movieDuration)), '.0', '') AS INT), 0),
+    -- Garante que o Budget (NOT NULL) tem pelo menos 0
+    ISNULL(MAX(CAST(R.movieBudget AS DECIMAL(15,2))), 0),
+    -- Garante que a Data (NOT NULL) tem um valor se o CSV estiver vazio
+    ISNULL(MAX(TRY_CONVERT(DATE, R.movieReleaseDate)), '1900-01-01'),
+    ISNULL(MAX(V.movieRatingCount), 0),
+    ISNULL(MAX(V.movieRating), 0),
+    1, -- Atribui USA por defeito (ID 1)
+    5  -- Atribui +18 por defeito (ID 5)
+FROM RawMovies R
+LEFT JOIN RawMovieVotes V ON R.movieID = V.movieID
+WHERE R.movieID IS NOT NULL -- Único critério: o filme tem de ter um ID
+GROUP BY R.movieID;
+GO
+
+
+-- Tabelas de Ligação (Garante que os IDs existem nas tabelas principais)
+INSERT INTO MovieGenres (movieID, genreID)
+SELECT DISTINCT movieID, genreID FROM RawGenreMovies
+WHERE movieID IN (SELECT movieID FROM Movies) AND genreID IN (SELECT genreID FROM Genres);
+
+INSERT INTO MovieActors (movieID, actorID)
+SELECT DISTINCT movieID, actorID FROM RawActors
+WHERE movieID IN (SELECT movieID FROM Movies) AND actorID IN (SELECT actorID FROM Actors);
+
+INSERT INTO MovieDirectors (movieID, directorID)
+SELECT DISTINCT movieID, directorID FROM RawDirectors
+WHERE movieID IN (SELECT movieID FROM Movies) AND directorID IN (SELECT directorID FROM Directors);
+GO

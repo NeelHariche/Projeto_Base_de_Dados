@@ -1,0 +1,411 @@
+/********************************************************************************
+ Projeto de Bases de Dados - Etapa 3 (Final)
+ Autores: Lucas Ribeiro, Neel Hariche, Rodrigo Alexandre
+ ********************************************************************************/
+
+-- Garantir que o script não falha se a BD já existir
+USE master;
+GO
+IF EXISTS (SELECT * FROM sys.databases WHERE name = 'Projetoteste2')
+BEGIN
+    ALTER DATABASE Projetoteste2 SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
+    DROP DATABASE Projetoteste2;
+END
+GO
+
+CREATE DATABASE Projetoteste2;
+GO
+
+USE Projetoteste2;
+GO
+
+-- 1. ENTIDADES (NOMES NO PLURAL)
+-------------------------------------------------------------------------
+
+CREATE TABLE Movies (
+    movieID INT PRIMARY KEY,
+    movieName VARCHAR(200) NOT NULL, -- Atributos no singular
+    movieBudget DECIMAL(15,2),                  
+    movieDuration INT,
+    movieReleaseDate DATE,                      
+    movieRatingCount INT,
+    movieRating DECIMAL(3,1),
+    ageRatingID INT,                            
+    countryID INT,                              
+    interactionDate DATE DEFAULT ('2026-01-01') 
+);
+GO
+
+CREATE TABLE Genres (
+    genreID INT PRIMARY KEY,
+    genreName VARCHAR(100) NOT NULL
+);
+GO
+
+CREATE TABLE Actors (
+    actorID INT PRIMARY KEY,
+    actorName VARCHAR(150) NOT NULL,
+    actorGender CHAR(1) CHECK (actorGender IN ('M','F'))
+);
+GO
+
+CREATE TABLE Directors (
+    directorID INT PRIMARY KEY,
+    directorName VARCHAR(150) NOT NULL
+);
+GO
+
+-- 2. TABELAS DE LIGAÇÃO (NOMES NO PLURAL)
+-------------------------------------------------------------------------
+
+CREATE TABLE MovieGenres (
+    movieID INT NOT NULL,
+    genreID INT NOT NULL,
+    PRIMARY KEY (movieID, genreID),
+    CONSTRAINT FK_MovieGenres_Movies FOREIGN KEY (movieID) REFERENCES Movies(movieID),
+    CONSTRAINT FK_MovieGenres_Genres FOREIGN KEY (genreID) REFERENCES Genres(genreID)
+);
+GO
+
+CREATE TABLE MovieActors (
+    movieID INT NOT NULL,
+    actorID INT NOT NULL,
+    PRIMARY KEY (movieID, actorID),
+    CONSTRAINT FK_MovieActors_Movies FOREIGN KEY (movieID) REFERENCES Movies(movieID),
+    CONSTRAINT FK_MovieActors_Actors FOREIGN KEY (actorID) REFERENCES Actors(actorID)
+);
+GO
+
+CREATE TABLE MovieDirectors (
+    movieID INT NOT NULL,
+    directorID INT NOT NULL,
+    PRIMARY KEY (movieID, directorID),
+    CONSTRAINT FK_MovieDirectors_Movies FOREIGN KEY (movieID) REFERENCES Movies(movieID),
+    CONSTRAINT FK_MovieDirectors_Directors FOREIGN KEY (directorID) REFERENCES Directors(directorID)
+);
+GO
+
+-- 3. Criar tabelas
+
+CREATE TABLE Platforms (
+    platformID INT PRIMARY KEY,
+    platformName VARCHAR(100) NOT NULL
+);
+GO
+
+CREATE TABLE AgeRatings (
+    ageRatingID INT PRIMARY KEY NOT NULL,
+    ageRatingName VARCHAR(20) NOT NULL
+);
+GO
+
+CREATE TABLE Continents (
+    continentID INT PRIMARY KEY,
+    continentName VARCHAR(50) NOT NULL
+);
+GO
+
+CREATE TABLE Countries (
+    countryID INT PRIMARY KEY NOT NULL,        
+    countryName VARCHAR(250) NOT NULL,         
+    continentID INT NOT NULL                    
+);
+GO
+
+CREATE TABLE MoviePlatforms (
+    movieID INT,
+    platformID INT,
+    PRIMARY KEY (movieID, platformID)
+);
+GO
+
+-- 4. RESTRIÇÕES (CONSTRAINTS)
+-------------------------------------------------------------------------
+
+ALTER TABLE Countries
+ADD CONSTRAINT FK_Countries_Continents
+FOREIGN KEY (continentID) REFERENCES Continents(continentID);
+GO
+
+ALTER TABLE Movies
+ADD CONSTRAINT FK_Movies_AgeRatings
+FOREIGN KEY (ageRatingID) REFERENCES AgeRatings(ageRatingID);
+GO
+
+ALTER TABLE Movies
+ADD CONSTRAINT FK_Movies_Countries
+FOREIGN KEY (countryID) REFERENCES Countries(countryID);
+GO
+
+ALTER TABLE MoviePlatforms
+ADD CONSTRAINT FK_MoviePlatforms_Movies
+FOREIGN KEY (movieID) REFERENCES Movies(movieID);
+GO
+
+ALTER TABLE MoviePlatforms
+ADD CONSTRAINT FK_MoviePlatforms_Platforms
+FOREIGN KEY (platformID) REFERENCES Platforms(platformID);
+GO
+
+-- 5. REGRAS DE NEGÓCIO ETAPA 2 
+
+ALTER TABLE Movies
+ALTER COLUMN movieReleaseDate DATE NOT NULL;
+GO
+
+ALTER TABLE Movies
+ALTER COLUMN movieBudget DECIMAL(15,2) NOT NULL;
+GO
+
+-- 6. INSERÇÕES BASE
+-------------------------------------------------------------------------
+
+INSERT INTO Platforms (platformID, platformName) VALUES
+(1, 'Netflix'), (2, 'HBO Max'), (3, 'Disney+'), (4, 'Amazon Prime Video'), (5, 'Apple TV+');
+GO
+
+INSERT INTO Continents (continentID, continentName) VALUES
+(1, 'Europa'), (2, 'América do Norte'), (3, 'Ásia'), (4, 'América do Sul'), (5, 'Oceânia');
+GO
+
+INSERT INTO Countries (countryID, countryName, continentID) VALUES
+(1, 'Estados Unidos', 2), (2, 'Reino Unido', 1), (3, 'França', 1), (4, 'Japão', 3), 
+(5, 'Coreia do Sul', 3), (6, 'Brasil', 4), (7, 'Austrália', 5), (8, 'Espanha', 1),       
+(9, 'Alemanha', 1), (10, 'Canadá', 2);        
+GO
+
+INSERT INTO AgeRatings (ageRatingID, ageRatingName) VALUES
+(1, '<10'), (2, '+12'), (3, '+14'), (4, '+16'), (5, '+18');    
+GO
+
+INSERT INTO Genres (genreID, genreName) VALUES
+(1, 'Ação'), (2, 'Comédia'), (3, 'Drama'), (4, 'Terror'), (5, 'Romance');
+GO
+
+INSERT INTO Actors (actorID, actorName, actorGender) VALUES
+(101, 'Tom Cruise', 'M'), (102, 'Scarlett Johansson', 'F'), (103, 'Leonardo DiCaprio', 'M');
+GO
+
+INSERT INTO Directors (directorID, directorName) VALUES
+(201, 'Christopher Nolan'), (202, 'Greta Gerwig'), (203, 'Quentin Tarantino');
+GO
+
+-- 7. TABELAS RAW (PARA CARREGAMENTO DOS FICHEIROS .CSV)
+-------------------------------------------------------------------------
+
+CREATE TABLE RawMovies (
+    movieID INT NULL,
+    movieName VARCHAR(1000) NULL,
+    movieDuration VARCHAR(200) NULL,
+    movieBudget INT NULL,
+    movieReleaseDate VARCHAR(300) NULL
+);
+GO
+
+CREATE TABLE RawMovieVotes (
+    movieID INT NULL,
+    movieRating DECIMAL(3,1),
+    movieRatingCount INT NULL
+);
+GO
+
+CREATE TABLE RawGenres (
+    genreID INT NULL,
+    genreName VARCHAR(200) NULL
+);
+GO
+
+CREATE TABLE RawGenreMovies (
+    genreID INT NULL,
+    movieID INT NULL
+);
+GO
+
+CREATE TABLE RawActors (
+    actorID INT NULL,
+    actorName VARCHAR(400) NULL,
+    actorGender VARCHAR(100) NULL,
+    movieID INT NULL
+);
+GO
+
+CREATE TABLE RawDirectors (
+    directorID INT NULL,
+    directorName VARCHAR(400) NULL,
+    movieID INT NULL
+);
+GO
+
+-- ********************************************************************************
+-- 7.1. TRANSPOSIÇÃO E NORMALIZAÇÃO DE DADOS (EXERCÍCIO 3.2)
+-- NOTA: Executar este bloco APÓS carregar os CSVs via terminal com o ./load.sh (MUITO IMPORTANTE)
+-- ********************************************************************************
+
+-- 9.1. LIMPEZA TOTAL (Evita erros ao re-executar o script)
+DELETE FROM MovieActors;
+DELETE FROM MovieGenres;
+DELETE FROM MovieDirectors;
+DELETE FROM MoviePlatforms;
+DELETE FROM Movies;
+DELETE FROM Actors;
+DELETE FROM Directors;
+DELETE FROM Genres;
+GO
+
+-- 9.2. Géneros (Garante ID único)
+INSERT INTO Genres (genreID, genreName)
+SELECT genreID, MAX(genreName)
+FROM RawGenres
+WHERE genreID IS NOT NULL
+GROUP BY genreID;
+GO
+
+-- 9.3. Atores (Garante ID único e limpa o género)
+INSERT INTO Actors (actorID, actorName, actorGender)
+SELECT actorID, MAX(actorName), 
+       MAX(CASE WHEN actorGender LIKE 'm%' THEN 'M' ELSE 'F' END)
+FROM RawActors
+WHERE actorID IS NOT NULL
+GROUP BY actorID;
+GO
+
+-- 9.4. Realizadores (Garante ID único)
+INSERT INTO Directors (directorID, directorName)
+SELECT directorID, MAX(directorName)
+FROM RawDirectors
+WHERE directorID IS NOT NULL
+GROUP BY directorID;
+GO
+
+-- 9.5. Filmes (Garante ID único e faz a limpeza crítica da duração)
+INSERT INTO Movies (
+    movieID, movieName, movieDuration, movieBudget, 
+    movieReleaseDate, movieRatingCount, movieRating, countryID, ageRatingID
+)
+SELECT 
+    R.movieID,
+    MAX(R.movieName),
+    -- Limpeza da duração: remove espaços e '.0'
+    TRY_CAST(REPLACE(TRIM(MAX(R.movieDuration)), '.0', '') AS INT),
+    MAX(CAST(R.movieBudget AS DECIMAL(15,2))),
+    MAX(TRY_CONVERT(DATE, R.movieReleaseDate)),
+    MAX(V.movieRatingCount),
+    MAX(V.movieRating),
+    1, -- Default: Estados Unidos
+    5  -- Default: +18
+FROM RawMovies R
+LEFT JOIN RawMovieVotes V ON R.movieID = V.movieID
+WHERE R.movieID IS NOT NULL 
+  AND TRY_CONVERT(DATE, R.movieReleaseDate) IS NOT NULL
+  AND R.movieBudget IS NOT NULL
+GROUP BY R.movieID;
+GO
+
+-- 9.6. Tabelas de Ligação (Garante que os IDs existem nas tabelas principais)
+INSERT INTO MovieGenres (movieID, genreID)
+SELECT DISTINCT movieID, genreID FROM RawGenreMovies
+WHERE movieID IN (SELECT movieID FROM Movies) AND genreID IN (SELECT genreID FROM Genres);
+
+INSERT INTO MovieActors (movieID, actorID)
+SELECT DISTINCT movieID, actorID FROM RawActors
+WHERE movieID IN (SELECT movieID FROM Movies) AND actorID IN (SELECT actorID FROM Actors);
+
+INSERT INTO MovieDirectors (movieID, directorID)
+SELECT DISTINCT movieID, directorID FROM RawDirectors
+WHERE movieID IN (SELECT movieID FROM Movies) AND directorID IN (SELECT directorID FROM Directors);
+GO
+
+
+
+-- ********************************************************************************
+-- 8. CONSULTAS (LISTAGENS ETAPA 2 CORRIGIDAS)TP_F3_AvaliacaoContinua_v4.pdf]
+-- ********************************************************************************
+
+-- 4.1: Listar vídeos de um certo género
+SELECT M.movieID, M.movieName, G.genreName
+FROM Movies M 
+JOIN MovieGenres MG ON M.movieID = MG.movieID
+JOIN Genres G ON MG.genreID = G.genreID
+WHERE TRIM(G.genreName) = 'Action'; 
+GO
+
+-- 4.2: Listar realizadores de vídeos produzidos num país
+SELECT DISTINCT D.directorID, D.directorName
+FROM Directors D 
+JOIN MovieDirectors MD ON D.directorID = MD.directorID
+JOIN Movies M ON MD.movieID = M.movieID
+JOIN Countries C ON M.countryID = C.countryID
+WHERE C.countryName = 'Estados Unidos'; -- 'França' daria 0 porque todos estão como USA
+GO
+
+SELECT DISTINCT D.directorID, D.directorName
+FROM Directors D 
+JOIN MovieDirectors MD ON D.directorID = MD.directorID
+JOIN Movies M ON MD.movieID = M.movieID
+JOIN Countries C ON M.countryID = C.countryID
+WHERE C.countryName = 'França'; -- Daria 0 porque todos estão como USA
+GO
+
+-- 4.3: Listar atores Masculinos em filmes de países Asiáticos
+SELECT DISTINCT A.actorID, A.actorName
+FROM Actors A 
+JOIN MovieActors MA ON A.actorID = MA.actorID
+JOIN Movies M ON MA.movieID = M.movieID
+JOIN Countries C_o ON M.countryID = C_o.countryID
+JOIN Continents C_e ON C_o.continentID = C_e.continentID
+WHERE A.actorGender = 'M' AND C_e.continentName = 'América do Norte';
+GO
+
+-- 4.4: Listar vídeos lançados em Maio, Junho e Julho
+SELECT M.movieID, M.movieName, M.movieReleaseDate
+FROM Movies M
+WHERE MONTH(M.movieReleaseDate) IN (5, 6, 7);
+GO
+
+-- 4.5: Listar vídeos de Ação, Europeus, lançados em Dezembro
+SELECT M.movieID, M.movieName, M.movieReleaseDate
+FROM Movies M 
+JOIN MovieGenres MG ON M.movieID = MG.movieID
+JOIN Genres G ON MG.genreID = G.genreID
+JOIN Countries C_o ON M.countryID = C_o.countryID
+JOIN Continents C_e ON C_o.continentID = C_e.continentID
+WHERE (G.genreName = 'Ação' OR G.genreName = 'Action') 
+  AND C_e.continentName = 'Europa' 
+  AND MONTH(M.movieReleaseDate) = 12;
+GO
+
+-- 4.6: Listar vídeos para maiores de 18
+SELECT M.movieID, M.movieName, AR.ageRatingName 
+FROM Movies M 
+JOIN AgeRatings AR ON M.ageRatingID = AR.ageRatingID
+WHERE AR.ageRatingName = '+18';
+GO
+
+-- 4.7: Contar vídeos para menores de 10, por Continente
+SELECT C_e.continentName, COUNT(*) AS totalVideosLess10
+FROM Movies M 
+JOIN AgeRatings AR ON M.ageRatingID = AR.ageRatingID
+JOIN Countries C_o ON M.countryID = C_o.countryID
+JOIN Continents C_e ON C_o.continentID = C_e.continentID
+WHERE AR.ageRatingName = '<10'
+GROUP BY C_e.continentName;
+GO
+
+-- 4.8: Contar vídeos para +18, por País da Europa
+SELECT C_o.countryName, COUNT(*) AS totalVideos18Plus
+FROM Movies M 
+JOIN AgeRatings AR ON M.ageRatingID = AR.ageRatingID
+JOIN Countries C_o ON M.countryID = C_o.countryID
+JOIN Continents C_e ON C_o.continentID = C_e.continentID
+WHERE AR.ageRatingName = '+18' AND C_e.continentName = 'América do Norte'
+GROUP BY C_o.countryName;
+GO
+
+-- 4.9: Top 10 diretores com melhor rating médio
+SELECT TOP 10 D.directorName, AVG(M.movieRating) AS mediaRating
+FROM Directors D 
+JOIN MovieDirectors MD ON D.directorID = MD.directorID
+JOIN Movies M ON MD.movieID = M.movieID
+GROUP BY D.directorName
+ORDER BY mediaRating DESC;
+GO
